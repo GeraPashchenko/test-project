@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DroneControlWindow</class>
+ <widget class="QMainWindow" name="DroneControlWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1200</width>
+    <height>800</height>
+   </rect>
+  </property>
+   <property name="windowTitle">
+   <string>Інтерфейс Управління Дронами</string>
+   </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="styleSheet">
+    <string notr="true">
+QWidget#centralwidget {
+    background-color: #0f1619;
+    color: #dbe7f3;
+    font-family: "Inter", "Roboto", "Segoe UI", sans-serif;
+    font-size: 12pt;
+}
+
+QFrame#leftPanel, QFrame#centerPanel, QFrame#rightPanel {
+    background-color: rgba(20,28,33,0.7);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.04);
+}
+
+QFrame#hudFrame {
+    background-color: rgba(10,14,16,0.6);
+    border-top: 1px solid rgba(255,255,255,0.03);
+}
+
+QLabel#radarTitle, QLabel#videoTitle, QLabel#settingsTitle {
+    color: #e6f0fa;
+    font-size: 16pt;
+    font-weight: 700;
+}
+
+QPushButton {
+    background-color: #1e2a30;
+    color: #dbe7f3;
+    border-radius: 8px;
+    padding: 6px 12px;
+}
+QPushButton:hover {
+    background-color: #26343d;
+}
+QPushButton:pressed {
+    background-color: #1a2429;
+}
+    </string>
+   </property>
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <item>
+     <widget class="QFrame" name="leftPanel">
+      <widget class="QLabel" name="radarTitle">
+       <property name="geometry">
+        <rect>
+         <x>12</x>
+         <y>12</y>
+         <width>161</width>
+         <height>33</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Телеметрiя</string>
+       </property>
+      </widget>
+     </widget>
+    </item>
+    <item>
+     <widget class="QFrame" name="centerPanel">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <widget class="QLabel" name="videoTitle">
+       <property name="geometry">
+        <rect>
+         <x>12</x>
+         <y>12</y>
+         <width>201</width>
+         <height>33</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Список дронiв</string>
+       </property>
+      </widget>
+     </widget>
+    </item>
+    <item>
+     <widget class="QFrame" name="rightPanel">
+      <widget class="QLabel" name="settingsTitle">
+       <property name="geometry">
+        <rect>
+         <x>12</x>
+         <y>12</y>
+         <width>211</width>
+         <height>33</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Логи</string>
+       </property>
+      </widget>
+      <widget class="QWidget" name="">
+       <property name="geometry">
+        <rect>
+         <x>12</x>
+         <y>647</y>
+         <width>371</width>
+         <height>51</height>
+        </rect>
+       </property>
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <item>
+         <widget class="QPushButton" name="stopButton">
+          <property name="text">
+           <string>Підключити</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="connectButton">
+          <property name="text">
+           <string>Відключити</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="startButton">
+          <property name="text">
+           <string>Перевірка</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+   <widget class="QFrame" name="hudFrame">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>709</y>
+      <width>1200</width>
+      <height>91</height>
+     </rect>
+    </property>
+    <widget class="QLabel" name="statusLabel">
+     <property name="geometry">
+      <rect>
+       <x>11</x>
+       <y>12</y>
+       <width>131</width>
+       <height>61</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">font: 26pt "MS Shell Dlg 2";</string>
+     </property>
+     <property name="text">
+      <string>Готовий</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="settingsButton">
+     <property name="geometry">
+      <rect>
+       <x>814</x>
+       <y>31</y>
+       <width>361</width>
+       <height>29</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>⚙ Налаштування</string>
+     </property>
+    </widget>
+   </widget>
+   <zorder>leftPanel</zorder>
+   <zorder>rightPanel</zorder>
+   <zorder>centerPanel</zorder>
+   <zorder>hudFrame</zorder>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
