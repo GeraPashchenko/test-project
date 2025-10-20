@@ -1,7 +1,7 @@
 import sys
 import os
 from PyQt5 import QtWidgets, uic, QtCore, QtGui
-from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QProgressBar, QTextEdit, QDialog, QLineEdit, QComboBox, QPushButton, QSpinBox
+from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QProgressBar, QTextEdit, QPlainTextEdit, QDialog, QLineEdit, QComboBox, QPushButton, QSpinBox
 from PyQt5.QtCore import QTimer, pyqtSignal
 import random
 import datetime
@@ -23,6 +23,8 @@ class DroneControlApp(QMainWindow):
         self.connected = False
         self.drones_list = []
         self.connected_drones = []  # Список підключених дронів
+        self.selected_drone = None  # Выбранный дрон из списка
+        self.simulated_armed = False  # Статус вооружения в режиме симуляции
         self.current_status = "Готовий"
         self.battery_display_mode = "percent"  # "percent" або "voltage"
         
@@ -49,6 +51,76 @@ class DroneControlApp(QMainWindow):
         # Инициализация индикатора подключения
         self.update_connection_indicator(False)
         
+        # Инициализация состояния кнопок ARM/DISARM (разоружен по умолчанию)
+        QtCore.QTimer.singleShot(500, self.initialize_ui_state)
+    
+    def initialize_ui_state(self):
+        """Инициализация состояния UI после полной загрузки"""
+        # Проверяем доступность кнопок ARM/DISARM
+        if hasattr(self, 'armButton') and hasattr(self, 'disarmButton'):
+            self.add_log("🔧 Кнопки ARM/DISARM знайдено та ініціалізовано")
+            
+            # Устанавливаем базовые стили кнопок
+            self.setup_button_styles()
+            
+            # Инициализируем в неактивном состоянии (нет выбранного дрона)
+            self.enable_arm_disarm_buttons(False)
+        else:
+            self.add_log("❌ ПОМИЛКА: Кнопки ARM/DISARM не знайдено!")
+    
+    def setup_button_styles(self):
+        """Настройка базовых стилей кнопок"""
+        # Стиль активной кнопки ARM (зеленая)
+        self.arm_active_style = """
+            QPushButton {
+                background-color: #2e7d32 !important;
+                color: white !important;
+                border: none !important;
+                border-radius: 8px !important;
+                padding: 8px 16px !important;
+                font-size: 12pt !important;
+                font-weight: bold !important;
+            }
+            QPushButton:hover {
+                background-color: #388e3c !important;
+            }
+            QPushButton:pressed {
+                background-color: #1b5e20 !important;
+            }
+        """
+        
+        # Стиль активной кнопки DISARM (красная)
+        self.disarm_active_style = """
+            QPushButton {
+                background-color: #d32f2f !important;
+                color: white !important;
+                border: none !important;
+                border-radius: 8px !important;
+                padding: 8px 16px !important;
+                font-size: 12pt !important;
+                font-weight: bold !important;
+            }
+            QPushButton:hover {
+                background-color: #f44336 !important;
+            }
+            QPushButton:pressed {
+                background-color: #b71c1c !important;
+            }
+        """
+        
+        # Стиль неактивной кнопки (серая)
+        self.inactive_style = """
+            QPushButton {
+                background-color: #424242 !important;
+                color: #9e9e9e !important;
+                border: none !important;
+                border-radius: 8px !important;
+                padding: 8px 16px !important;
+                font-size: 12pt !important;
+                font-weight: bold !important;
+            }
+        """
+            
     def setup_mavlink_signals(self):
         """Настройка сигналов MAVLink"""
         self.mavlink.telemetry_updated.connect(self.update_real_telemetry)
@@ -60,7 +132,11 @@ class DroneControlApp(QMainWindow):
         # Кнопки управления (исправляем имена кнопок согласно UI)
         self.stopButton.clicked.connect(self.connect_drone)  # "Підключити"
         self.connectButton.clicked.connect(self.disconnect_drone)  # "Відключити" 
-        self.startButton.clicked.connect(self.check_system)  # "Перевірка"
+        self.startButton.clicked.connect(self.quick_connect_drone)  # "🚁 Швидке підключення"
+        
+        # Кнопки ARM/DISARM
+        self.armButton.clicked.connect(self.arm_drone)  # "ARM"
+        self.disarmButton.clicked.connect(self.disarm_drone)  # "DISARM"
         
         # Кнопка настроек
         self.settingsButton.clicked.connect(self.open_settings)
@@ -94,6 +170,8 @@ class DroneControlApp(QMainWindow):
                 font-size: 14pt;
                 font-weight: bold;
                 margin: 5px;
+                max-width: 180px;
+                min-width: 140px;
             }
         """)
         self.connection_status_button.setEnabled(False)  # Делаем кнопку неактивной (только индикатор)
@@ -160,8 +238,16 @@ class DroneControlApp(QMainWindow):
         battery_layout.addWidget(self.battery_mode_button)
         battery_layout.addStretch()
         
+        # Контейнер для кнопки подключения (центрируем)
+        connection_container = QtWidgets.QWidget()
+        connection_layout = QHBoxLayout(connection_container)
+        connection_layout.setContentsMargins(0, 0, 0, 0)
+        connection_layout.addStretch()
+        connection_layout.addWidget(self.connection_status_button)
+        connection_layout.addStretch()
+        
         layout = QVBoxLayout(telemetry_container)
-        layout.addWidget(self.connection_status_button)
+        layout.addWidget(connection_container)
         layout.addWidget(self.coord_label)
         layout.addWidget(self.altitude_label)
         layout.addWidget(self.speed_label)
@@ -201,24 +287,7 @@ class DroneControlApp(QMainWindow):
         
     def setup_settings_panel(self):
         """Настройка панели настроек"""
-        # Текстовое поле для логов
-        self.log_text = QTextEdit()
-        self.log_text.setGeometry(12, 50, 350, 580)
-        self.log_text.setParent(self.rightPanel)
-        self.log_text.setStyleSheet("""
-            QTextEdit {
-                background-color: rgba(30,42,48,0.7);
-                border: 1px solid rgba(255,255,255,0.1);
-                border-radius: 8px;
-                color: #dbe7f3;
-                font-size: 10pt;
-                font-family: 'Consolas', 'Courier New', monospace;
-                padding: 8px;
-            }
-        """)
-        self.log_text.setReadOnly(True)
-        
-        # Добавляем начальное сообщение в лог
+        # Теперь логи встроены в UI через logsTextEdit - просто добавляем начальное сообщение
         self.add_log("Система ініціалізована")
         
     def update_drones_list(self):
@@ -246,6 +315,20 @@ class DroneControlApp(QMainWindow):
             self.update_drones_list()
             self.add_log(f"✅ Дрон додано до списку: {drone_info}")
             
+            # Автоматически выбираем подключенный дрон
+            self.selected_drone = drone_info
+            self.add_log(f"🎯 Автоматично вибрано дрон: {drone_info}")
+            
+            # Выделяем дрон в списке
+            for i in range(self.drones_list_widget.count()):
+                item = self.drones_list_widget.item(i)
+                if item.text() == drone_info:
+                    self.drones_list_widget.setCurrentItem(item)
+                    break
+            
+            # Активируем кнопки ARM/DISARM для подключенного дрона
+            self.enable_arm_disarm_buttons(True)
+            
     def remove_connected_drone(self, drone_info):
         """Видалення дрона зі списку"""
         if drone_info in self.connected_drones:
@@ -261,14 +344,30 @@ class DroneControlApp(QMainWindow):
             
             # Перевіряємо чи це реальний дрон (не інформаційне повідомлення)
             if drone_name.startswith("🚁"):
-                self.add_log(f"Вибрано дрон: {drone_name}")
+                self.add_log(f"✅ Вибрано дрон: {drone_name}")
+                self.selected_drone = drone_name
+                
+                # Активируем кнопки ARM/DISARM для выбранного дрона
+                self.add_log("🔧 Активуємо кнопки ARM/DISARM...")
+                self.enable_arm_disarm_buttons(True)
+                
                 if self.connected:
-                    self.add_log(f"Активний дрон: {drone_name}")
+                    self.add_log(f"✅ Активний дрон з MAVLink: {drone_name}")
+                    # Если есть реальное подключение, обновляем согласно телеметрии
+                    telemetry = self.mavlink.get_telemetry()
+                    self.update_arm_buttons_state(telemetry.get('armed', False))
                 else:
-                    self.add_log("Дрон у списку, але з'єднання відсутнє")
+                    self.add_log(f"📱 Дрон вибрано (симуляція): {drone_name}")
+                    # Если нет реального подключения, используем состояние симуляции
+                    self.update_arm_buttons_state(self.simulated_armed)
             else:
                 # Інформаційні повідомлення не обробляємо
-                pass
+                self.selected_drone = None
+                self.enable_arm_disarm_buttons(False)
+        else:
+            # Ничего не выбрано
+            self.selected_drone = None
+            self.enable_arm_disarm_buttons(False)
                 
     def toggle_battery_mode(self):
         """Переключение режима отображения батареи"""
@@ -280,6 +379,43 @@ class DroneControlApp(QMainWindow):
             self.battery_display_mode = "percent"
             self.battery_mode_button.setText("% → V")
             self.add_log("Режим відображення батареї: Проценти")
+    
+    def quick_connect_drone(self):
+        """Быстрое подключение к дрону с дефолтными настройками"""
+        if not self.connected:
+            # Используем дефолтные настройки: TCP 192.168.1.118:5760
+            protocol, host, port = "TCP", "192.168.1.118", 5760
+            
+            self.mavlink.set_connection_params(protocol, host, port)
+            self.update_status("Підключення до дрона...")
+            self.add_log(f"🚁 Швидке підключення до дрона {host}:{port}...")
+            
+            # Пытаемся подключиться
+            if self.mavlink.connect():
+                self.connected = True
+                self.real_telemetry = True
+                
+                # Обновляем индикатор подключения ПОСЛЕ установки connected
+                self.update_connection_indicator(True)
+                # Таймер для реальных данных не нужен
+                self.timer.stop()
+                self.update_status("Підключено до дрона")
+                self.add_log("✅ Швидке підключення встановлено!")
+                
+                # Инициализируем состояние кнопок ARM/DISARM (по умолчанию разоружен)
+                self.update_arm_buttons_state(False)
+                
+                # Додаємо дрон до списку підключених
+                drone_name = f"🚁 Дрон ({protocol}://{host}:{port})"
+                self.add_connected_drone(drone_name)
+            else:
+                self.connected = False
+                self.real_telemetry = False
+                self.update_connection_indicator(False)
+                self.update_status("❌ Помилка підключення")
+                self.add_log("❌ Не вдалося підключитися до дрона")
+        else:
+            self.add_log("⚠️ Дрон уже підключено!")
             
     def connect_drone(self):
         """Підключення до дрона"""
@@ -293,17 +429,20 @@ class DroneControlApp(QMainWindow):
                 self.update_status("Підключення...")
                 self.add_log("Спроба підключення до дрона...")
                 
-                # Обновляем индикатор подключения
-                self.update_connection_indicator(True)
-                
                 # Пытаемся подключиться
                 if self.mavlink.connect():
                     self.connected = True
                     self.real_telemetry = True
+                    
+                    # Обновляем индикатор подключения ПОСЛЕ установки connected
+                    self.update_connection_indicator(True)
                     # Таймер для реальных данных не нужен
                     self.timer.stop()
                     self.update_status("Підключено")
                     self.add_log("Підключення встановлено")
+                    
+                    # Инициализируем состояние кнопок ARM/DISARM (по умолчанию разоружен)
+                    self.update_arm_buttons_state(False)
                     
                     # Додаємо дрон до списку підключених
                     drone_name = f"🚁 Дрон ({protocol}://{host}:{port})"
@@ -327,7 +466,11 @@ class DroneControlApp(QMainWindow):
             
             # Видаляємо всі дрони зі списку при відключенні
             self.connected_drones.clear()
+            self.selected_drone = None  # Сбрасываем выбранный дрон
             self.update_drones_list()
+            
+            # Деактивируем кнопки ARM/DISARM
+            self.enable_arm_disarm_buttons(False)
             
             self.update_status("Відключено")
             self.add_log("Відключено від системи")
@@ -357,6 +500,100 @@ class DroneControlApp(QMainWindow):
         status = "Система в нормі" if random.choice([True, False, True]) else "Виявлено проблеми"
         self.update_status(status)
         self.add_log(f"Діагностика завершена: {status}")
+        
+    def arm_drone(self):
+        """Вооружение дрона (ARM)"""
+        if not self.selected_drone:
+            self.add_log("❌ Не вибрано дрон")
+            QMessageBox.warning(self, "Помилка", "Спочатку виберіть дрон зі списку!")
+            return
+        
+        # Подтверждение действия
+        drone_info = self.selected_drone.replace("🚁 ", "")
+        reply = QMessageBox.question(self, "Підтвердження", 
+                                   f"Ви впевнені, що хочете вооружити дрон?\n\n{drone_info}", 
+                                   QMessageBox.Yes | QMessageBox.No, 
+                                   QMessageBox.No)
+        
+        if reply == QMessageBox.Yes:
+            self.update_status("Вооружаємо дрон...")
+            
+            if self.connected:
+                # Реальное подключение - отправляем MAVLink команду
+                self.add_log(f"🔫 Реальна команда ARM для {drone_info}...")
+                
+                # Проверяем текущий статус вооружения
+                telemetry = self.mavlink.get_telemetry()
+                if telemetry.get('armed', False):
+                    self.add_log("⚠️ Дрон уже вооружен!")
+                    QMessageBox.information(self, "Увага", "Дрон уже вооружений!")
+                    return
+                
+                if self.mavlink.arm_disarm(arm=True):
+                    self.add_log("✅ Реальна команда ARM відправлена успішно")
+                else:
+                    self.add_log("❌ Помилка відправки реальної команди ARM")
+                    QMessageBox.critical(self, "Помилка", "Не вдалося відправити команду ARM!")
+            else:
+                # Режим симуляции
+                if self.simulated_armed:
+                    self.add_log("⚠️ Дрон уже вооружен (симуляція)!")
+                    QMessageBox.information(self, "Увага", "Дрон уже вооружений!")
+                    return
+                
+                self.add_log(f"🔫 Симуляція ARM для {drone_info}...")
+                self.simulated_armed = True
+                self.add_log("✅ Дрон вооружен (симуляція)")
+                self.update_arm_buttons_state(True)  # Обновляем кнопки на "вооружен"
+                QMessageBox.information(self, "Успіх", f"Дрон {drone_info} вооружений!")
+                self.update_status("Дрон вооружений (симуляція)")
+        
+    def disarm_drone(self):
+        """Разоружение дрона (DISARM)"""
+        if not self.selected_drone:
+            self.add_log("❌ Не вибрано дрон")
+            QMessageBox.warning(self, "Помилка", "Спочатку виберіть дрон зі списку!")
+            return
+        
+        # Подтверждение действия
+        drone_info = self.selected_drone.replace("🚁 ", "")
+        reply = QMessageBox.question(self, "Підтвердження", 
+                                   f"Ви впевнені, що хочете розброїти дрон?\n\n{drone_info}", 
+                                   QMessageBox.Yes | QMessageBox.No, 
+                                   QMessageBox.No)
+        
+        if reply == QMessageBox.Yes:
+            self.update_status("Розброюємо дрон...")
+            
+            if self.connected:
+                # Реальное подключение - отправляем MAVLink команду
+                self.add_log(f"🛡️ Реальна команда DISARM для {drone_info}...")
+                
+                # Проверяем текущий статус вооружения
+                telemetry = self.mavlink.get_telemetry()
+                if not telemetry.get('armed', True):
+                    self.add_log("⚠️ Дрон уже розброєний!")
+                    QMessageBox.information(self, "Увага", "Дрон уже розброєний!")
+                    return
+                
+                if self.mavlink.arm_disarm(arm=False):
+                    self.add_log("✅ Реальна команда DISARM відправлена успішно")
+                else:
+                    self.add_log("❌ Помилка відправки реальної команди DISARM")
+                    QMessageBox.critical(self, "Помилка", "Не вдалося відправити команду DISARM!")
+            else:
+                # Режим симуляции
+                if not self.simulated_armed:
+                    self.add_log("⚠️ Дрон уже розброєний (симуляція)!")
+                    QMessageBox.information(self, "Увага", "Дрон уже розброєний!")
+                    return
+                
+                self.add_log(f"🛡️ Симуляція DISARM для {drone_info}...")
+                self.simulated_armed = False
+                self.add_log("✅ Дрон розброєний (симуляція)")
+                self.update_arm_buttons_state(False)  # Обновляем кнопки на "разоружен"
+                QMessageBox.information(self, "Успіх", f"Дрон {drone_info} розброєний!")
+                self.update_status("Дрон розброєний (симуляція)")
         
     def open_settings(self):
         """Відкриття вікна налаштувань"""
@@ -441,6 +678,9 @@ class DroneControlApp(QMainWindow):
             self.add_log(f"📊 {status_info}")
         self.last_status_info = status_info
         
+        # Обновляем состояние кнопок ARM/DISARM в зависимости от статуса вооружения
+        self.update_arm_buttons_state(armed)
+        
     def on_mavlink_connection_changed(self, connected):
         """Обработка изменения состояния MAVLink подключения"""
         if not connected and self.connected:
@@ -477,6 +717,8 @@ class DroneControlApp(QMainWindow):
                     font-size: 14pt;
                     font-weight: bold;
                     margin: 5px;
+                    max-width: 180px;
+                    min-width: 140px;
                 }
             """)
         else:
@@ -491,18 +733,96 @@ class DroneControlApp(QMainWindow):
                     font-size: 14pt;
                     font-weight: bold;
                     margin: 5px;
+                    max-width: 180px;
+                    min-width: 140px;
                 }
             """)
+        
+        # Кнопки ARM/DISARM теперь управляются отдельно через выбор дрона
+    
+    def enable_arm_disarm_buttons(self, enabled):
+        """Включение/отключение кнопок ARM/DISARM"""
+        if hasattr(self, 'armButton') and hasattr(self, 'disarmButton') and hasattr(self, 'arm_active_style'):
+            self.add_log(f"🔧 Оновлення кнопок ARM/DISARM: enabled={enabled}")
+            
+            if enabled:
+                # Кнопки доступны, но состояние зависит от статуса вооружения
+                # По умолчанию дрон разоружен, поэтому ARM активна, DISARM неактивна
+                self.armButton.setEnabled(True)
+                self.disarmButton.setEnabled(False)
+                
+                # Используем предопределенные стили с !important
+                self.armButton.setStyleSheet(self.arm_active_style)
+                self.disarmButton.setStyleSheet(self.inactive_style)
+                
+                self.add_log("✅ ARM активна (зелена), DISARM неактивна (сіра)")
+                
+            else:
+                # Кнопки недоступны
+                self.armButton.setEnabled(False)
+                self.disarmButton.setEnabled(False)
+                
+                # Обе кнопки неактивны
+                self.armButton.setStyleSheet(self.inactive_style)
+                self.disarmButton.setStyleSheet(self.inactive_style)
+        else:
+            self.add_log("❌ ПОМИЛКА: Кнопки ARM/DISARM або стилі не знайдено!")
+    
+    def update_arm_buttons_state(self, armed):
+        """Обновление состояния кнопок ARM/DISARM в зависимости от статуса вооружения"""
+        if not hasattr(self, 'armButton') or not hasattr(self, 'disarmButton'):
+            return
+        
+        # Если есть реальное подключение ИЛИ выбран дрон, кнопки должны быть активны
+        if not self.connected and not self.selected_drone:
+            self.add_log("⚠️ Кнопки деактивовані: немає підключення та не вибрано дрон")
+            self.armButton.setEnabled(False)
+            self.disarmButton.setEnabled(False)
+            return
+            
+        if armed:
+            # Дрон вооружен - ARM неактивна, DISARM активна
+            self.armButton.setEnabled(False)
+            self.disarmButton.setEnabled(True)
+            
+            # Визуальная индикация
+            self.armButton.setText("🔫 ВООРУЖЕНО")
+            self.disarmButton.setText("🛡️ DISARM")
+            
+            # Используем предопределенные стили
+            self.armButton.setStyleSheet(self.inactive_style)
+            self.disarmButton.setStyleSheet(self.disarm_active_style)
+        else:
+            # Дрон разоружен - ARM активна, DISARM неактивна
+            self.armButton.setEnabled(True)
+            self.disarmButton.setEnabled(False)
+            
+            # Визуальная индикация
+            self.armButton.setText("🔫 ARM")
+            self.disarmButton.setText("🛡️ РОЗБРОЄНО")
+            
+            # Используем предопределенные стили с !important
+            self.armButton.setStyleSheet(self.arm_active_style)
+            self.disarmButton.setStyleSheet(self.inactive_style)
+            
+        # Принудительное обновление интерфейса
+        self.armButton.update()
+        self.disarmButton.update()
         
     def add_log(self, message):
         """Добавление сообщения в лог"""
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         log_entry = f"[{timestamp}] {message}"
-        self.log_text.append(log_entry)
         
-        # Прокрутка вниз
-        scrollbar = self.log_text.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        # Используем новый QPlainTextEdit из UI
+        if hasattr(self, 'logsTextEdit'):
+            self.logsTextEdit.appendPlainText(log_entry)
+            
+            # Прокрутка вниз
+            scrollbar = self.logsTextEdit.verticalScrollBar()
+            scrollbar.setValue(scrollbar.maximum())
+        else:
+            print(f"Log: {log_entry}")  # Fallback в консоль если виджет не найден
 
 class ConnectionDialog(QDialog):
     def __init__(self, parent=None):
@@ -562,14 +882,14 @@ class ConnectionDialog(QDialog):
         protocol_layout.addWidget(QLabel("Протокол:"))
         self.protocol_combo = QComboBox()
         self.protocol_combo.addItems(["UDP", "TCP"])
-        self.protocol_combo.setCurrentText("UDP")
+        self.protocol_combo.setCurrentText("TCP")  # Дефолт TCP
         protocol_layout.addWidget(self.protocol_combo)
         layout.addLayout(protocol_layout)
         
         # Хост
         host_layout = QHBoxLayout()
         host_layout.addWidget(QLabel("IP адреса:"))
-        self.host_input = QLineEdit("127.0.0.1")
+        self.host_input = QLineEdit("192.168.1.118")  # Дефолт IP дрона
         self.host_input.setPlaceholderText("Введіть IP адресу дрона")
         host_layout.addWidget(self.host_input)
         layout.addLayout(host_layout)
@@ -579,7 +899,7 @@ class ConnectionDialog(QDialog):
         port_layout.addWidget(QLabel("Порт:"))
         self.port_input = QSpinBox()
         self.port_input.setRange(1, 65535)
-        self.port_input.setValue(14550)
+        self.port_input.setValue(5760)  # Дефолт порт дрона
         port_layout.addWidget(self.port_input)
         layout.addLayout(port_layout)
         
@@ -592,11 +912,6 @@ class ConnectionDialog(QDialog):
         preset_buttons_layout = QHBoxLayout()
         preset_buttons_layout.setSpacing(10)
         
-        qgc_button = QPushButton("QGroundControl")
-        qgc_button.setStyleSheet("min-height: 35px; font-size: 11pt; padding: 8px;")
-        qgc_button.setToolTip("UDP 127.0.0.1:14550")
-        qgc_button.clicked.connect(lambda: self.set_preset("127.0.0.1", 14550, "UDP"))
-        
         mission_button = QPushButton("Mission Planner")
         mission_button.setStyleSheet("min-height: 35px; font-size: 11pt; padding: 8px;")
         mission_button.setToolTip("UDP 127.0.0.1:14551")
@@ -607,9 +922,9 @@ class ConnectionDialog(QDialog):
         sitl_button.setToolTip("TCP 127.0.0.1:5760")
         sitl_button.clicked.connect(lambda: self.set_preset("127.0.0.1", 5760, "TCP"))
         
-        preset_buttons_layout.addWidget(qgc_button)
         preset_buttons_layout.addWidget(mission_button)
         preset_buttons_layout.addWidget(sitl_button)
+        
         presets_layout.addLayout(preset_buttons_layout)
         layout.addLayout(presets_layout)
         
