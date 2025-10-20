@@ -167,3 +167,6 @@ idea/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Python 
+__pycache__
