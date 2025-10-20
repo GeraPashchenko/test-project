@@ -10,9 +10,15 @@
     <height>800</height>
    </rect>
   </property>
-   <property name="windowTitle">
+  <property name="minimumSize">
+   <size>
+    <width>800</width>
+    <height>600</height>
+   </size>
+  </property>
+  <property name="windowTitle">
    <string>Інтерфейс Управління Дронами</string>
-   </property>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <property name="styleSheet">
     <string notr="true">
@@ -27,6 +33,7 @@ QFrame#leftPanel, QFrame#centerPanel, QFrame#rightPanel {
     background-color: rgba(20,28,33,0.7);
     border-radius: 12px;
     border: 1px solid rgba(255,255,255,0.04);
+    margin: 6px;
 }
 
 QFrame#hudFrame {
@@ -45,6 +52,7 @@ QPushButton {
     color: #dbe7f3;
     border-radius: 8px;
     padding: 6px 12px;
+    min-height: 32px;
 }
 QPushButton:hover {
     background-color: #26343d;
@@ -52,140 +60,357 @@ QPushButton:hover {
 QPushButton:pressed {
     background-color: #1a2429;
 }
+
+QTextEdit, QPlainTextEdit {
+    background-color: rgba(30,42,48,0.8);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: #dbe7f3;
+    padding: 8px;
+    font-family: "Consolas", "Monaco", monospace;
+    font-size: 11pt;
+}
     </string>
    </property>
-   <layout class="QHBoxLayout" name="horizontalLayout">
+   <layout class="QVBoxLayout" name="mainVerticalLayout">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
     <item>
-     <widget class="QFrame" name="leftPanel">
-      <widget class="QLabel" name="radarTitle">
-       <property name="geometry">
-        <rect>
-         <x>12</x>
-         <y>12</y>
-         <width>161</width>
-         <height>33</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Телеметрiя</string>
-       </property>
-      </widget>
-     </widget>
-    </item>
-    <item>
-     <widget class="QFrame" name="centerPanel">
-      <property name="enabled">
-       <bool>true</bool>
+     <layout class="QHBoxLayout" name="mainHorizontalLayout">
+      <property name="spacing">
+       <number>0</number>
       </property>
-      <widget class="QLabel" name="videoTitle">
-       <property name="geometry">
-        <rect>
-         <x>12</x>
-         <y>12</y>
-         <width>201</width>
-         <height>33</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Список дронiв</string>
-       </property>
-      </widget>
-     </widget>
+      <item>
+       <widget class="QFrame" name="leftPanel">
+        <property name="minimumSize">
+         <size>
+          <width>250</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>350</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <layout class="QVBoxLayout" name="leftPanelLayout">
+         <property name="spacing">
+          <number>12</number>
+         </property>
+         <property name="leftMargin">
+          <number>12</number>
+         </property>
+         <property name="topMargin">
+          <number>12</number>
+         </property>
+         <property name="rightMargin">
+          <number>12</number>
+         </property>
+         <property name="bottomMargin">
+          <number>12</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="radarTitle">
+           <property name="text">
+            <string>Телеметрiя</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="leftPanelSpacer">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QFrame" name="centerPanel">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>300</width>
+          <height>0</height>
+         </size>
+        </property>
+        <layout class="QVBoxLayout" name="centerPanelLayout">
+         <property name="spacing">
+          <number>12</number>
+         </property>
+         <property name="leftMargin">
+          <number>12</number>
+         </property>
+         <property name="topMargin">
+          <number>12</number>
+         </property>
+         <property name="rightMargin">
+          <number>12</number>
+         </property>
+         <property name="bottomMargin">
+          <number>12</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="videoTitle">
+           <property name="text">
+            <string>Список дронiв</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="centerPanelSpacer">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="armDisarmLayout">
+           <item>
+            <widget class="QPushButton" name="armButton">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="text">
+              <string>🔫 ARM</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="disarmButton">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="text">
+              <string>🛡️ DISARM</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="connectionLayout">
+           <item>
+            <widget class="QPushButton" name="stopButton">
+             <property name="text">
+              <string>Підключити</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="connectButton">
+             <property name="text">
+              <string>Відключити</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="QPushButton" name="startButton">
+           <property name="text">
+            <string>🚁 Швидке підключення</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+QPushButton {
+    background-color: #2e7d32;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: bold;
+    min-height: 36px;
+}
+QPushButton:hover {
+    background-color: #388e3c;
+}
+QPushButton:pressed {
+    background-color: #1b5e20;
+}
+            </string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QFrame" name="rightPanel">
+        <property name="minimumSize">
+         <size>
+          <width>250</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>400</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <layout class="QVBoxLayout" name="rightPanelLayout">
+         <property name="spacing">
+          <number>12</number>
+         </property>
+         <property name="leftMargin">
+          <number>12</number>
+         </property>
+         <property name="topMargin">
+          <number>12</number>
+         </property>
+         <property name="rightMargin">
+          <number>12</number>
+         </property>
+         <property name="bottomMargin">
+          <number>12</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="settingsTitle">
+           <property name="text">
+            <string>Логи</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPlainTextEdit" name="logsTextEdit">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>200</height>
+            </size>
+           </property>
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+           <property name="plainText">
+            <string>Система готова до роботи...
+Очікування підключення дрона...</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
     </item>
     <item>
-     <widget class="QFrame" name="rightPanel">
-      <widget class="QLabel" name="settingsTitle">
-       <property name="geometry">
-        <rect>
-         <x>12</x>
-         <y>12</y>
-         <width>211</width>
-         <height>33</height>
-        </rect>
+     <widget class="QFrame" name="hudFrame">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>80</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>120</height>
+       </size>
+      </property>
+      <layout class="QHBoxLayout" name="hudLayout">
+       <property name="spacing">
+        <number>12</number>
        </property>
-       <property name="text">
-        <string>Логи</string>
+       <property name="leftMargin">
+        <number>12</number>
        </property>
-      </widget>
-      <widget class="QWidget" name="">
-       <property name="geometry">
-        <rect>
-         <x>12</x>
-         <y>647</y>
-         <width>371</width>
-         <height>51</height>
-        </rect>
+       <property name="topMargin">
+        <number>12</number>
        </property>
-       <layout class="QHBoxLayout" name="horizontalLayout_2">
-        <item>
-         <widget class="QPushButton" name="stopButton">
-          <property name="text">
-           <string>Підключити</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="connectButton">
-          <property name="text">
-           <string>Відключити</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="startButton">
-          <property name="text">
-           <string>Перевірка</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
+       <property name="rightMargin">
+        <number>12</number>
+       </property>
+       <property name="bottomMargin">
+        <number>12</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="statusLabel">
+         <property name="styleSheet">
+          <string notr="true">font: 26pt "MS Shell Dlg 2";</string>
+         </property>
+         <property name="text">
+          <string>Готовий</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="hudSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="settingsButton">
+         <property name="maximumSize">
+          <size>
+           <width>200</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>⚙ Налаштування</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </widget>
     </item>
    </layout>
-   <widget class="QFrame" name="hudFrame">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>709</y>
-      <width>1200</width>
-      <height>91</height>
-     </rect>
-    </property>
-    <widget class="QLabel" name="statusLabel">
-     <property name="geometry">
-      <rect>
-       <x>11</x>
-       <y>12</y>
-       <width>131</width>
-       <height>61</height>
-      </rect>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">font: 26pt "MS Shell Dlg 2";</string>
-     </property>
-     <property name="text">
-      <string>Готовий</string>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="settingsButton">
-     <property name="geometry">
-      <rect>
-       <x>814</x>
-       <y>31</y>
-       <width>361</width>
-       <height>29</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>⚙ Налаштування</string>
-     </property>
-    </widget>
-   </widget>
-   <zorder>leftPanel</zorder>
-   <zorder>rightPanel</zorder>
-   <zorder>centerPanel</zorder>
-   <zorder>hudFrame</zorder>
   </widget>
  </widget>
  <resources/>

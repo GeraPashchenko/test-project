@@ -18,10 +18,10 @@ class MAVLinkConnection(QObject):
         self.thread = None
         
         # Параметры подключения по умолчанию
-        self.connection_string = "udpin:0.0.0.0:14550"  # QGroundControl стандарт
-        self.protocol = "UDP"  # UDP или TCP
-        self.host = "127.0.0.1"
-        self.port = 14550
+        self.connection_string = "tcp:192.168.1.118:5760"  # Реальный дрон
+        self.protocol = "TCP"  # UDP или TCP
+        self.host = "192.168.1.118"
+        self.port = 5760
         
         # Данные телеметрии
         self.telemetry_data = {
@@ -129,7 +129,13 @@ class MAVLinkConnection(QObject):
                 if msg.get_type() == 'HEARTBEAT':
                     if not self.connected:
                         self.connected = True
-                        self.message_received.emit("💓 Heartbeat отримано")
+                        # Устанавливаем target_system и target_component из heartbeat
+                        if hasattr(self.connection, 'target_system') and self.connection.target_system is None:
+                            self.connection.target_system = msg.get_srcSystem()
+                            self.connection.target_component = msg.get_srcComponent()
+                        
+                        self.message_received.emit(f"💓 Heartbeat від system={msg.get_srcSystem()}, component={msg.get_srcComponent()}")
+                        self.message_received.emit(f"🎯 Target встановлено: system={self.connection.target_system}, component={self.connection.target_component}")
                     
                     # Обновляем режим и статус вооружения
                     self.telemetry_data['mode'] = mavutil.mode_string_v10(msg)
@@ -173,7 +179,18 @@ class MAVLinkConnection(QObject):
         if not self.connection:
             return
         
+        # Ждем немного чтобы target_system был установлен
+        time.sleep(0.5)
+        
         try:
+            # Проверяем что target_system установлен
+            if not hasattr(self.connection, 'target_system') or self.connection.target_system is None:
+                self.message_received.emit("⚠️ target_system не встановлено, використовуємо 1")
+                self.connection.target_system = 1
+                self.connection.target_component = 1
+            
+            self.message_received.emit(f"📊 Запитуємо потік даних від system={self.connection.target_system}")
+            
             # Запрашиваем различные потоки данных
             data_streams = [
                 mavutil.mavlink.MAV_DATA_STREAM_ALL,
@@ -191,7 +208,7 @@ class MAVLinkConnection(QObject):
                     1   # Включить
                 )
             
-            self.message_received.emit("📊 Запитано потік телеметрії")
+            self.message_received.emit("✅ Потік телеметрії запитано")
             
         except Exception as e:
             self.message_received.emit(f"Помилка запиту даних: {str(e)}")
@@ -203,6 +220,10 @@ class MAVLinkConnection(QObject):
             return False
         
         try:
+            # Получаем имя команды для логирования
+            command_name = mavutil.mavlink.enums['MAV_CMD'][command].name if command in mavutil.mavlink.enums['MAV_CMD'] else f"CMD_{command}"
+            self.message_received.emit(f"📤 Відправляємо {command_name} з параметрами: {param1}, {param2}, {param3}...")
+            
             self.connection.mav.command_long_send(
                 self.connection.target_system,
                 self.connection.target_component,
@@ -211,8 +232,7 @@ class MAVLinkConnection(QObject):
                 param1, param2, param3, param4, param5, param6, param7
             )
             
-            command_name = mavutil.mavlink.enums['MAV_CMD'][command].name if command in mavutil.mavlink.enums['MAV_CMD'] else f"CMD_{command}"
-            self.message_received.emit(f"📤 Команда відправлена: {command_name}")
+            self.message_received.emit(f"✅ {command_name} відправлена на target_system={self.connection.target_system}")
             return True
             
         except Exception as e:
@@ -221,14 +241,56 @@ class MAVLinkConnection(QObject):
     
     def arm_disarm(self, arm=True):
         """Вооружение/разоружение дрона"""
+        if not self.connected or not self.connection:
+            self.message_received.emit("❌ Немає з'єднання для ARM/DISARM")
+            return False
+            
         param1 = 1 if arm else 0
         action = "вооружение" if arm else "разоружение"
         
         self.message_received.emit(f"🔫 Команда {action}...")
-        return self.send_command(
-            mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
-            param1=param1
-        )
+        
+        try:
+            # Отправляем команду ARM/DISARM с правильными параметрами
+            self.connection.mav.command_long_send(
+                self.connection.target_system,
+                self.connection.target_component,
+                mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+                0,  # confirmation
+                param1,  # arm/disarm (1/0)
+                0,      # param2 - не используется
+                0,      # param3 - не используется  
+                0,      # param4 - не используется
+                0,      # param5 - не используется
+                0,      # param6 - не используется
+                0       # param7 - не используется
+            )
+            
+            self.message_received.emit(f"📤 ARM/DISARM команда відправлена: {param1}")
+            
+            # Ждем подтверждения от автопилота
+            start_time = time.time()
+            timeout = 3.0  # 3 секунды на ответ
+            
+            while time.time() - start_time < timeout:
+                msg = self.connection.recv_match(type='COMMAND_ACK', blocking=False, timeout=0.1)
+                if msg and msg.command == mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM:
+                    if msg.result == mavutil.mavlink.MAV_RESULT_ACCEPTED:
+                        self.message_received.emit(f"✅ ARM/DISARM команда прийнята автопілотом")
+                        return True
+                    else:
+                        result_name = mavutil.mavlink.enums['MAV_RESULT'].get(msg.result, {}).get('name', f"RESULT_{msg.result}")
+                        self.message_received.emit(f"❌ ARM/DISARM команда відхилена: {result_name}")
+                        return False
+                        
+                time.sleep(0.1)
+            
+            self.message_received.emit(f"⚠️ Немає відповіді на ARM/DISARM команду (timeout)")
+            return False
+            
+        except Exception as e:
+            self.message_received.emit(f"❌ Помилка ARM/DISARM: {str(e)}")
+            return False
     
     def takeoff(self, altitude=10):
         """Команда взлета"""
